@@ -64,15 +64,58 @@ class StoreConnector(object):
 
     def _get_resource(self, dataset):
         resource = {}
-        resource['name'] = slugify('Dataset %s - ID %s' % (dataset['title'], dataset['id']))
+        # Page 23 of the pdf document: TODO
+        resource['id'] = slugify('Dataset %s - ID %s' % (dataset['title'], dataset['id']))# Title of the dataset
+        resource['href'] = ('%s/productCatalogManagement/productSpecification/' % self.store_url)
+        resource['productNumber'] = dataset['id']
+        resource['version'] = dataset['version']
+        resource['lastUpdate'] = ''
+        resource['name'] = dataset['title']
         resource['description'] = dataset['notes']
-        resource['version'] = '1.0'
-        resource['content_type'] = 'dataset'
-        resource['resource_type'] = 'API'
-        # Open resources can be offered in Non-open Offerings
-        resource['open'] = True
-        resource['link'] = self._get_dataset_url(dataset)
+        resource['isBundle'] = False
+        resource['brand'] = c.user  # Name of the author
+        resource['lifeCycleStatus'] = 'Active'
+        resource['validFor'] = {}
+        resource['relatedParty'] = [{
+            'id': c.user,
+            'href': ('%s/DSPartyManagement/api/partyManagement/v2/individual/%s' % (self.store_url, c.user)),
+            'role': 'Owner'
+        }]
 
+        # Request to upload the attachment
+        headers = {'Accept': 'application/json'}
+        body = {
+            'contentType': dataset['image']['mediaType'], # Double check this fields.
+            'isPublic': True,
+            'content': {
+                'name': dataset['image']['name'],
+                'data': dataset['image']['image_base64']
+            }
+        } 
+        _make_request('post', '{}/api/offering/resources'.format(self.store_url), headers, body)
+        resource['attachment'] = [{
+            'type': 'Picture',
+            'url': # Esto requiere hacer una petición post y meter la url de lo que devuelva aquí. Mirar el correo de fran.
+        }] # TODO: image or other attachments
+        resource['bundleProductSpecification'] = [{}]
+        resource['productSpecificationRelationShip'] = [{}]
+        resource['serviceSpecification'] = [{}]
+        resource['resourceSpecification'] = [{}]
+        resource['resourceSpecCharacteristic'] = [{
+            'configurable': False,
+            'name': 'Media Type',
+            'value': dataset['type']
+        },
+        {
+            'configurable': False,
+            'name': 'Asset Type',
+            'value': 'CKAN Dataset'
+        },
+        {
+            'configurable': False,
+            'name': 'Location',
+            'value': '{}/dataset/{}'.format(self.site_url, dataset['id'])
+        }]
         return resource
 
     def _get_offering(self, offering_info, resource):
