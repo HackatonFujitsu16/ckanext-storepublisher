@@ -62,19 +62,18 @@ class StoreConnector(object):
     def _get_dataset_url(self, dataset):
         return '%s/dataset/%s' % (self.site_url, dataset['id'])
 
-    def _get_resource(self, dataset):
+    def _get_resource(self, dataset, content_info):
+        log.info(content_info)
+        c = plugins.toolkit.c
         resource = {}
         # Page 23 of the pdf document: TODO
-        resource['id'] = slugify('Dataset %s - ID %s' % (dataset['title'], dataset['id']))# Title of the dataset
-        resource['href'] = ('%s/productCatalogManagement/productSpecification/' % self.store_url)
         resource['productNumber'] = dataset['id']
-        resource['version'] = dataset['version']
-        resource['lastUpdate'] = ''
+        resource['version'] = content_info['version']
         resource['name'] = dataset['title']
         resource['description'] = dataset['notes']
         resource['isBundle'] = False
         resource['brand'] = c.user  # Name of the author
-        resource['lifeCycleStatus'] = 'Active'
+        resource['lifeCycleStatus'] = 'Launched'
         resource['validFor'] = {}
         resource['relatedParty'] = [{
             'id': c.user,
@@ -82,20 +81,23 @@ class StoreConnector(object):
             'role': 'Owner'
         }]
 
-        # Request to upload the attachment
-        headers = {'Accept': 'application/json'}
-        body = {
-            'contentType': dataset['image']['mediaType'], # Double check this fields.
-            'isPublic': True,
-            'content': {
-                'name': dataset['image']['name'],
-                'data': dataset['image']['image_base64']
-            }
-        } 
-        _make_request('post', '{}/api/offering/resources'.format(self.store_url), headers, body)
+        def _upload_image():
+            # Request to upload the attachment
+            name = 'image_{}'.format(dataset['title'])
+            headers = {'Accept': 'application/json'}
+            body = {
+                'contentType': 'image/png', # Double check this fields.
+                'isPublic': True,
+                'content': {
+                    'name': name,
+                    'data': content_info['image_base64']
+                }
+            } 
+            _make_request('post', '{}/api/offering/resources'.format(self.store_url), headers, body)
+
         resource['attachment'] = [{
             'type': 'Picture',
-            'url': # Esto requiere hacer una petición post y meter la url de lo que devuelva aquí. Mirar el correo de fran.
+            'url': _upload_image # Esto requiere hacer una petición post y meter la url de lo que devuelva aquí. Mirar el correo de fran.
         }] # TODO: image or other attachments
         resource['bundleProductSpecification'] = [{}]
         resource['productSpecificationRelationShip'] = [{}]
@@ -245,9 +247,9 @@ class StoreConnector(object):
         else:
             return None
 
-    def _create_resource(self, dataset):
+    def _create_resource(self, dataset, content_info):
         # Create the resource
-        resource = self._get_resource(dataset)
+        resource = self._get_resource(dataset, content_info)
         headers = {'Content-Type': 'application/json'}
         self._make_request('post', '%s/api/offering/resources' % self.store_url,
                            headers, json.dumps(resource))
@@ -321,14 +323,18 @@ class StoreConnector(object):
         log.info('Creating Offering %s' % offering_info['name'])
         offering_created = False
 
+        log.info('Dataset: ')
+        log.info(dataset)
+        log.info('Offering_info: ')
+        log.info(offering_info)
         # Make the request to the server
         headers = {'Content-Type': 'application/json'}
-
         try:
             # Get the resource. If it does not exist, it will be created
             resource = self._get_existing_resource(dataset)
             if resource is None:
-                resource = self._create_resource(dataset)
+                content_info = {'image_base64': offering_info['image_base64'], 'version': offering_info['version']}
+                resource = self._create_resource(dataset, content_info)
 
             offering = self._get_offering(offering_info, resource)
             tags = self._get_tags(offering_info)
