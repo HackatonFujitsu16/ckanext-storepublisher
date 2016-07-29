@@ -30,6 +30,7 @@ MISSING_ERROR = 'This filed is required to publish the offering'
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 filepath = os.path.join(__dir__, '../assets/logo-ckan.png')
+BASE_STORE_URL = 'https://store.example.com:7458'
 
 with open(filepath, 'rb') as f:
     LOGO_CKAN_B64 = base64.b64encode(f.read())
@@ -56,6 +57,10 @@ class UIControllerTest(unittest.TestCase):
         self._store_connector_instance = MagicMock()
         controller.StoreConnector = MagicMock(return_value=self._store_connector_instance)
 
+        self.config = {
+            'ckan.storepublisher.store_url': BASE_STORE_URL,
+        }
+        
         # Create the plugin
         self.instanceController = controller.PublishControllerUI()
 
@@ -104,7 +109,8 @@ class UIControllerTest(unittest.TestCase):
         current_package = {'tags': [{'name': 'tag1'}, {'name': 'tag2'}], 'private': private, 'acquire_url': 'http://example.com'}
         package_show = MagicMock(return_value=current_package)
         package_update = MagicMock()
-
+        
+        
         def _get_action_side_effect(action):
             if action == 'package_show':
                 return package_show
