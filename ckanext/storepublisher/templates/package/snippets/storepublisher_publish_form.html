@@ -5,7 +5,7 @@
 
 {% set name = offering['name'] if offering else data.title %}
 {% set description = offering['description'] if offering else data.notes %}
-{% set categories = offering['tags'] %}
+{% set categories = offering[categories'] %}
 {% set version =  offering['version'] if offering else '' %}
 {% set license_description = offering['license_description'] if offering else '' %}
 {% set price = offering['price'] if offering else '' %}
